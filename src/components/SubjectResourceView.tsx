@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { BookOpen, FileText, ExternalLink, Download, Eye, Users, Calendar, Filter, Search, Grid, List } from "lucide-react";
+import { BookOpen, FileText, ExternalLink, Download, Eye, Users, Calendar, Filter, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Resource {
   id: string;
@@ -588,33 +589,29 @@ const SubjectResourceView = ({ branch, semester, branchName, semesterName }: Sub
   const subjectKey = `${branch}-${semester}` as keyof typeof subjectData;
   const subjects = subjectData[subjectKey] || {};
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-  const flattened = Object.entries(subjects).flatMap(([subjectName, s]) =>
-    (s.resources || []).map((r) => ({ ...r, subjectName }))
-  );
+  const allResourcesList: Resource[] = Object.values(subjects).flatMap((s) => s.resources || []);
+  const totalResources = allResourcesList.length;
+  const notesCount = allResourcesList.filter((r) => r.type === 'Notes').length;
+  const pyqCount = allResourcesList.filter((r) => r.type === 'PYQ').length;
+  const linkCount = allResourcesList.filter((r) => r.type === 'External Link').length;
 
-  const visibleResources = flattened
-    .filter((r) => {
-      const q = searchTerm.toLowerCase();
-      const matchesSearch =
-        r.title.toLowerCase().includes(q) ||
-        r.uploader.toLowerCase().includes(q) ||
-        r.subjectName.toLowerCase().includes(q);
-      const matchesType = filterType === 'all' || r.type === filterType;
-      return matchesSearch && matchesType;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'popular':
-          return b.views - a.views;
-        case 'downloads':
-          return b.downloads - a.downloads;
-        case 'newest':
-        default:
-          return +new Date(b.uploadedAt) - +new Date(a.uploadedAt);
-      }
-    });
+  const sortResources = (arr: Resource[]) => {
+    const copy = arr.slice();
+    switch (sortBy) {
+      case 'popular':
+        copy.sort((a, b) => b.views - a.views);
+        break;
+      case 'downloads':
+        copy.sort((a, b) => b.downloads - a.downloads);
+        break;
+      case 'newest':
+      default:
+        copy.sort((a, b) => +new Date(b.uploadedAt) - +new Date(a.uploadedAt));
+    }
+    return copy;
+  };
 
   const getResourceIcon = (type: string) => {
     switch (type) {
